@@ -1,16 +1,8 @@
 package com.soulcub.idea
 
-import spock.lang.Specification
+class tmb extends BaseSpec {
 
-class psmte extends Specification {
-
-    static String replacement = [
-            '"': '&quot;',
-            '>': '&gt;',
-            '<': '&lt;',
-    ]
-
-    def "psmte"() {
+    def "test"() {
         given: "clipboard content"
             def _1 = "public class UserGamesPerConfig {\n" +
                     "\n" +
@@ -24,6 +16,16 @@ class psmte extends Specification {
                     "    @NonNull\n" +
                     "    Map<String, UserGamesInfo> featuredGames;\n" +
                     "    long version;\n"
+        and:
+            def expected = "        UserGamesPerConfig userGamesPerConfig() {\n" +
+                    "        UserGamesPerConfig.builder()\n" +
+                    "                .userId(userId)\n" +
+                    "                .gameConfigId(gameConfigId)\n" +
+                    "                .gameType(gameType)\n" +
+                    "                .featuredGames(featuredGames)\n" +
+                    "                .version(version)\n" +
+                    "                .build()\n" +
+                    "    }\n"
         when:
             def result = _1
                     .split(System.lineSeparator())
@@ -33,33 +35,29 @@ class psmte extends Specification {
                     .collect { it.replace(';', '') }
                     .collect { it.replace('{', '') }
                     .collect { it.trim() }
-                    .collect { it ->
-                        def tokens = it.split()
-                        if (tokens.find { it == 'class' }) {
-                            def className = tokens[2]
-                            return className + ' ' + className.uncapitalize() + '() {' + System.lineSeparator() + className + '.builder()'
-                        } else if (tokens.find { it.contains('<') }) {
-                            def varName = tokens[1]
+                    .collect { String it ->
+                        if (it.contains('<')) {
+                            def varName = it.substring(it.indexOf('>') + 1).trim()
                             return '.' + varName + '(' + varName + ')'
                         } else {
-                            def varName = tokens[1]
-                            return '.' + varName + '(' + varName + ')'
+                            def tokens = it.split()
+                            if (tokens.find { it == 'class' }) {
+                                def className = tokens[2]
+                                return className + ' ' + className.uncapitalize() + '() {' + System.lineSeparator() + className + '.builder()'
+                            } else {
+                                def varName = tokens[1]
+                                return '.' + varName + '(' + varName + ')'
+                            }
                         }
                     }
-                    .join(System.lineSeparator())
-            + System.lineSeparator()
-            + '.build()'
-            + System.lineSeparator()
-            + '}'
+                    .join(System.lineSeparator()) + System.lineSeparator() + '.build()' + System.lineSeparator() + '}'
         then:
-            result == "    public static UserGamesPerConfigEntity of(UserGamesPerConfig model) {\n" +
-                    "        return builder()\n" +
-                    "                .id(GameInfoKeyEntity.of(model.getUserId(), model.getGameConfigId()))\n" +
-                    "                .gameType(model.getGameType())\n" +
-                    "                .byFeatureGames(remapToList(model.getFeaturedGames().values(), UserGamesEntity::of))\n" +
-                    "                .version(model.getVersion())\n" +
-                    "                .build();\n" +
-                    "    }\n"
+            def resultStrings = result.split(System.lineSeparator())
+            def expectedStrings = expected.split(System.lineSeparator())
+            resultStrings.size() == expectedStrings.size()
+            for (i in 0..<resultStrings.size()) {
+                assert resultStrings[i].trim() == expectedStrings[i].trim()
+            }
     }
 
 }

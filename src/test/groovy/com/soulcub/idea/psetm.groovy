@@ -1,10 +1,10 @@
 package com.soulcub.idea
 
-class psmte extends BaseSpec {
+class psetm extends BaseSpec {
 
     def "test"() {
         given: "clipboard content"
-            def _1 = "public class WedgeConfigEntity {\n" +
+            def _1 = "public class WedgeConfig implements Weighted {\n" +
                     "\n" +
                     "    @NonNull\n" +
                     "    WedgeType wedgeType;\n" +
@@ -15,10 +15,10 @@ class psmte extends BaseSpec {
                     "    @NonNull\n" +
                     "    Long bundleId;\n"
         and:
-            def expected = "                .wedgeType(model.getWedgeType())\n" +
-                    "                .wedgeIndex(model.getWedgeIndex())\n" +
-                    "                .weight(model.getWeight())\n" +
-                    "                .bundleId(model.getBundleId())\n"
+            def expected = "                .wedgeType(entity.getWedgeType())\n" +
+                    "                .wedgeIndex(entity.getWedgeIndex())\n" +
+                    "                .weight(entity.getWeight())\n" +
+                    "                .bundleId(entity.getBundleId())\n"
         when:
             def result = _1
                     .split(System.lineSeparator())
@@ -32,9 +32,9 @@ class psmte extends BaseSpec {
                         def varType = tokens[0]
                         def varName = tokens[1]
                         if (tokens.find { typeString -> ['Collection', 'Set', 'List'].any { typeString.contains(it) } }) {
-                            return '.' + varName + '(remapToSet(model.get' + varName.capitalize() + '(), ' + varType.substring(varType.indexOf('<') + 1, varType.indexOf('>')) + '::of))'
+                            return '.' + varName + '(remapToSet(entity.get' + varName.capitalize() + '(), ' + varType.substring(varType.indexOf('<') + 1, varType.indexOf('>')) + '::of))'
                         } else {
-                            return '.' + varName + '(model.get' + varName.capitalize() + '())'
+                            return '.' + varName + '(entity.get' + varName.capitalize() + '())'
                         }
                     }.join(System.lineSeparator())
         then:

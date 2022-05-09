@@ -1,4 +1,13 @@
 package com.soulcub.idea
 
-class BaseSpec {
+import spock.lang.Specification
+
+class BaseSpec extends Specification {
+
+    static String replacement = [
+            '"': '&quot;',
+            '>': '&gt;',
+            '<': '&lt;',
+    ]
+
 }
