@@ -1,4 +1,6 @@
-package com.soulcub.idea
+package com.soulcub.idea.templates
+
+import com.soulcub.idea.BaseSpec
 
 class tmb extends BaseSpec {
 
@@ -27,7 +29,8 @@ class tmb extends BaseSpec {
                     "                .build()\n" +
                     "    }\n"
         when:
-            def result = _1
+            def result =
+                    _1
                     .split(System.lineSeparator())
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }
@@ -37,15 +40,15 @@ class tmb extends BaseSpec {
                     .collect { it.trim() }
                     .collect { String it ->
                         if (it.contains('<')) {
-                            def varName = it.substring(it.indexOf('>') + 1).trim()
+                            def varName = it.substring(it.indexOf('>') + 1).trim();
                             return '.' + varName + '(' + varName + ')'
                         } else {
-                            def tokens = it.split()
+                            def tokens = it.split();
                             if (tokens.find { it == 'class' }) {
-                                def className = tokens[2]
+                                def className = tokens[2];
                                 return className + ' ' + className.uncapitalize() + '() {' + System.lineSeparator() + className + '.builder()'
                             } else {
-                                def varName = tokens[1]
+                                def varName = tokens[1];
                                 return '.' + varName + '(' + varName + ')'
                             }
                         }

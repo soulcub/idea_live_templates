@@ -1,4 +1,6 @@
-package com.soulcub.idea
+package com.soulcub.idea.templates
+
+import com.soulcub.idea.BaseSpec
 
 class psetm extends BaseSpec {
 
@@ -13,37 +15,36 @@ class psetm extends BaseSpec {
                     "    @NonNull\n" +
                     "    Integer weight;\n" +
                     "    @NonNull\n" +
-                    "    Long bundleId;\n"
+                    "    Long bundleId;\n" +
+                    "    @Singular\n" +
+                    "    @NonNull\n" +
+                    "    Map<String, UserGamesInfo> featuredGames;\n" +
+                    "    @NonNull\n" +
+                    "    Collection<UserGamesEntity> byFeatureGames;\n"
         and:
             def expected = "                .wedgeType(entity.getWedgeType())\n" +
                     "                .wedgeIndex(entity.getWedgeIndex())\n" +
                     "                .weight(entity.getWeight())\n" +
-                    "                .bundleId(entity.getBundleId())\n"
+                    "                .bundleId(entity.getBundleId())\n" +
+                    "                .featuredGames(entity.getFeaturedGames())\n" +
+                    "                .byFeatureGames(entity.getByFeatureGames())\n"
         when:
-            def result = _1
+            def result =
+                    _1
                     .split(System.lineSeparator())
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }
                     .findAll { !it.startsWith('@') }
                     .findAll { !it.contains('class') }
                     .collect { it.replace(';', '') }
+                    .collect { if (it.contains('<')) return it.substring(0, it.indexOf('<')) + it.substring(it.lastIndexOf(' ')) else return it }
                     .collect { it ->
-                        def tokens = it.split()
-                        def varType = tokens[0]
-                        def varName = tokens[1]
-                        if (tokens.find { typeString -> ['Collection', 'Set', 'List'].any { typeString.contains(it) } }) {
-                            return '.' + varName + '(remapToSet(entity.get' + varName.capitalize() + '(), ' + varType.substring(varType.indexOf('<') + 1, varType.indexOf('>')) + '::of))'
-                        } else {
-                            return '.' + varName + '(entity.get' + varName.capitalize() + '())'
-                        }
+                        def tokens = it.split();
+                        def varName = tokens[1];
+                        return '.' + varName + '(entity.get' + varName.capitalize() + '())'
                     }.join(System.lineSeparator())
         then:
-            def resultStrings = result.split(System.lineSeparator())
-            def expectedStrings = expected.split(System.lineSeparator())
-            resultStrings.size() == expectedStrings.size()
-            for (i in 0..<resultStrings.size()) {
-                assert resultStrings[i].trim() == expectedStrings[i].trim()
-            }
+            assertResult(expected, result)
     }
 
 }
