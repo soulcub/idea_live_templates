@@ -4,7 +4,7 @@ import com.soulcub.idea.BaseSpec
 
 class psetm extends BaseSpec {
 
-    def "test"() {
+    def "public static entity to model"() {
         given: "clipboard content"
             def _1 = "public class WedgeConfig implements Weighted {\n" +
                     "\n" +
@@ -29,8 +29,7 @@ class psetm extends BaseSpec {
                     "                .featuredGames(entity.getFeaturedGames())\n" +
                     "                .byFeatureGames(entity.getByFeatureGames())\n"
         when:
-            def result =
-                    _1
+            def result = _1
                     .split(System.lineSeparator())
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }

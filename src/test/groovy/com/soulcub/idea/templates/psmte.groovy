@@ -4,7 +4,7 @@ import com.soulcub.idea.BaseSpec
 
 class psmte extends BaseSpec {
 
-    def "test"() {
+    def "public static model to entity"() {
         given: "clipboard content"
             def _1 = "public class UserGamesPerConfigEntity implements Versioned<UserGamesPerConfigEntity> {\n" +
                     "\n" +
@@ -29,8 +29,7 @@ class psmte extends BaseSpec {
                     "                .version(model.getVersion())\n" +
                     "                .featuredGames(model.getFeaturedGames())\n"
         when:
-            def result =
-                    _1
+            def result = _1
                     .split(System.lineSeparator())
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }

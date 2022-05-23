@@ -4,7 +4,7 @@ import com.soulcub.idea.BaseSpec
 
 class tmb extends BaseSpec {
 
-    def "test"() {
+    def "test model builder"() {
         given: "clipboard content"
             def _1 = "public class UserGamesPerConfig {\n" +
                     "\n" +
@@ -29,8 +29,7 @@ class tmb extends BaseSpec {
                     "                .build()\n" +
                     "    }\n"
         when:
-            def result =
-                    _1
+            def result = _1
                     .split(System.lineSeparator())
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }
