@@ -2,7 +2,7 @@ package com.soulcub.idea.templates
 
 import com.soulcub.idea.BaseSpec
 
-class gspec extends BaseSpec {
+class pltgspec extends BaseSpec {
 
     def "groovy spec"() {
         when:
@@ -10,6 +10,7 @@ class gspec extends BaseSpec {
                     .findAll { it.contains('private final') }
                     .collect { it.replace('private final', '') }
                     .collect { it.replace(';', '') }
+                    .collect { if (!it.contains('<')) return it else it.substring(0, it.indexOf('<')) + it.substring(it.indexOf('>') + 1, it.length()) }
                     .collect { it.trim() };
             def parsedRawFields = parsedRawFieldsWithTypes.collect { it.split()[1] };
             def parsedStringsWithClassName = _1.split(System.lineSeparator())
@@ -25,7 +26,7 @@ class gspec extends BaseSpec {
                     .findAll { !it.contains('TODO') }
                     .collect { it.replace(';', '') }
                     .collect { it ->
-                        if (it.contains('{')) {
+                        if (it.contains('{')) { /*method to run*/
                             def returnType = it.split(' ')[1];
                             def methodName = it.split(' ')
                                     .find { it.contains('(') }
@@ -39,19 +40,32 @@ class gspec extends BaseSpec {
                                     .join(System.lineSeparator());
                             def resultPostfix = '';
                             if (returnType.contains('Optional')) { returnType = returnType.substring(returnType.indexOf('<') + 1, returnType.indexOf('>')); resultPostfix = '.get()'; }
-                            return System.lineSeparator() +
+
+                            def withoutResultAssertion = System.lineSeparator() +
                                     'def target = new ' + className + '(' + parsedRawFields.join(', ') + ')' + System.lineSeparator() +
                                     'def "test"() {' + System.lineSeparator() +
-                                    'when:' + System.lineSeparator() +
-                                    'def result = target.' + methodName + '(' + methodParams  + System.lineSeparator() +
+                                    'when:' + System.lineSeparator();
+                            if (returnType.contains('void')) {
+                                withoutResultAssertion += 'target.' + methodName + '(' + methodParams + System.lineSeparator()
+                            } else {
+                                withoutResultAssertion += 'def result = target.' + methodName + '(' + methodParams + System.lineSeparator()
+                            }
+                            withoutResultAssertion +=
                                     'then:' + System.lineSeparator() +
-                                    mocks + System.lineSeparator() +
-                                    'and:' + System.lineSeparator() +
-                                    'result' + resultPostfix + ' == ' + returnType.uncapitalize() + '()' + System.lineSeparator() +
-                                    '}'
-                        } else if (it.contains('private final')) {
-                            def fieldWithType = parsedRawFieldsWithTypes.find { field -> it.contains(field) };
-                            def typeFieldArray = fieldWithType.split(' ')
+                                            mocks + System.lineSeparator()
+                            if (!returnType.contains('void')) {
+                                withoutResultAssertion +=
+                                        'and:' + System.lineSeparator() +
+                                                'result' + resultPostfix + ' == ' + returnType.uncapitalize() + '()' + System.lineSeparator()
+                            }
+                            return withoutResultAssertion + '}'
+                        } else if (it.contains('private final')) { /*fields*/
+                            def withoutTypes = it;
+                            if (it.contains('<')) {
+                                withoutTypes = it.substring(0, it.indexOf('<')) + it.substring(it.indexOf('>') + 1, it.length())
+                            }
+                            def fieldWithType = parsedRawFieldsWithTypes.find { field -> withoutTypes.contains(field) };
+                            def typeFieldArray = fieldWithType.split(' ');
                             return 'def ' + typeFieldArray[1] + ' = Mock(' + typeFieldArray[0] + ')'
                         }
                         throw new Exception('Cant process code line "' + it + '"')
@@ -81,7 +95,16 @@ class gspec extends BaseSpec {
                             "    private final RandomUtils randomUtils;\n" +
                             "\n" +
                             "    @Debug\n" +
-                            "    public WedgeConfig select(DefaultWheelGameConfig wheelGameConfig) {\n"
+                            "    public WedgeConfig select(DefaultWheelGameConfig wheelGameConfig) {\n",
+                    "public class MessagingFacade {\n" +
+                            "\n" +
+                            "    private final Duration messageTtl;\n" +
+                            "    private final KafkaTemplate<String, UserMessage> messagingKafkaTemplate;\n" +
+                            "    private final String taskCompletedMessageType;\n" +
+                            "\n" +
+                            "    @Debug\n" +
+                            "    @Metered(name = \"task_finished_client_messaging\")\n" +
+                            "    public void sendAchievedRuleMessage(Long userId, GameCreatedMessagingDto gameCreatedMessagingDto) {\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -126,6 +149,21 @@ class gspec extends BaseSpec {
                             "            0 * _\n" +
                             "        and:\n" +
                             "            result == wedgeConfig()\n" +
+                            "    }",
+                    "    def messageTtl = Mock(Duration)\n" +
+                            "    def messagingKafkaTemplate = Mock(KafkaTemplate)\n" +
+                            "    def taskCompletedMessageType = Mock(String)\n" +
+                            "\n" +
+                            "    def target = new MessagingFacade(messageTtl, messagingKafkaTemplate, taskCompletedMessageType)\n" +
+                            "\n" +
+                            "    def \"test\"() {\n" +
+                            "        when:\n" +
+                            "            target.sendAchievedRuleMessage(userId, gameCreatedMessagingDto)\n" +
+                            "        then:\n" +
+                            "            1 * messageTtl\n" +
+                            "            1 * messagingKafkaTemplate\n" +
+                            "            1 * taskCompletedMessageType\n" +
+                            "            0 * _\n" +
                             "    }"
             ]
     }

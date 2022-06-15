@@ -2,7 +2,7 @@ package com.soulcub.idea.templates
 
 import com.soulcub.idea.BaseSpec
 
-class tmb extends BaseSpec {
+class plttmb extends BaseSpec {
 
     def "test model builder"() {
         given: "clipboard content"

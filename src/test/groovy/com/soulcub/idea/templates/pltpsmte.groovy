@@ -2,7 +2,7 @@ package com.soulcub.idea.templates
 
 import com.soulcub.idea.BaseSpec
 
-class psmte extends BaseSpec {
+class pltpsmte extends BaseSpec {
 
     def "public static model to entity"() {
         given: "clipboard content"
