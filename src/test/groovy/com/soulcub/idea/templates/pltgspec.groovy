@@ -26,14 +26,17 @@ class pltgspec extends BaseSpec {
                     .findAll { !it.contains('TODO') }
                     .collect { it.replace(';', '') }
                     .collect { it ->
-                        if (it.contains('{')) { /*method to run*/
+                        if (it.contains('{')) { /*method to run full string*/
                             def returnType = it.split(' ')[1];
                             def methodName = it.split(' ')
                                     .find { it.contains('(') }
                                     .split('\\(')[0];
                             def methodParams = it.split(methodName)[1]
-                                    .replace(' {', '')
+                                    .replace(') {', '')
                                     .split(', ')
+                                    .collect { it.trim() }
+                                    .findAll { !it.isEmpty() }
+                                    .findAll { it != '(' } /*in case we don't have parameters*/
                                     .collect { it.split(' ')[1] }
                                     .join(', ');
                             def mocks = (parsedRawFields.collect { '1 * ' + it } + '0 * _')
@@ -46,9 +49,9 @@ class pltgspec extends BaseSpec {
                                     'def "test"() {' + System.lineSeparator() +
                                     'when:' + System.lineSeparator();
                             if (returnType.contains('void')) {
-                                withoutResultAssertion += 'target.' + methodName + '(' + methodParams + System.lineSeparator()
+                                withoutResultAssertion += 'target.' + methodName + '(' + methodParams + ')' + System.lineSeparator()
                             } else {
-                                withoutResultAssertion += 'def result = target.' + methodName + '(' + methodParams + System.lineSeparator()
+                                withoutResultAssertion += 'def result = target.' + methodName + '(' + methodParams + ')' + System.lineSeparator()
                             }
                             withoutResultAssertion +=
                                     'then:' + System.lineSeparator() +
@@ -104,7 +107,12 @@ class pltgspec extends BaseSpec {
                             "\n" +
                             "    @Debug\n" +
                             "    @Metered(name = \"task_finished_client_messaging\")\n" +
-                            "    public void sendAchievedRuleMessage(Long userId, GameCreatedMessagingDto gameCreatedMessagingDto) {\n"
+                            "    public void sendAchievedRuleMessage(Long userId, GameCreatedMessagingDto gameCreatedMessagingDto) {\n",
+                    "public class AdminConfigsController {\n" +
+                            "\n" +
+                            "    private final AdminConfigsService adminConfigsService;\n" +
+                            "\n" +
+                            "    public List<JackpotConfigDto> getAllJackpotConfigs() {\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -164,6 +172,19 @@ class pltgspec extends BaseSpec {
                             "            1 * messagingKafkaTemplate\n" +
                             "            1 * taskCompletedMessageType\n" +
                             "            0 * _\n" +
+                            "    }",
+                    "    def adminConfigsService = Mock(AdminConfigsService)\n" +
+                            "\n" +
+                            "    def target = new AdminConfigsController(adminConfigsService)\n" +
+                            "\n" +
+                            "    def \"test\"() {\n" +
+                            "        when:\n" +
+                            "            def result = target.getAllJackpotConfigs()\n" +
+                            "        then:\n" +
+                            "            1 * adminConfigsService\n" +
+                            "            0 * _\n" +
+                            "        and:\n" +
+                            "            result == list<JackpotConfigDto>()\n" +
                             "    }"
             ]
     }
