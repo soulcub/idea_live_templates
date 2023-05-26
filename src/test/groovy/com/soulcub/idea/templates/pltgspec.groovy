@@ -24,6 +24,7 @@ class pltgspec extends BaseSpec {
                     .findAll { !it.startsWith('@') }
                     .findAll { !it.contains('class') }
                     .findAll { !it.contains('TODO') }
+                    .findAll { !it.contains('public static') }
                     .collect { it.replace(';', '') }
                     .collect { it ->
                         if (it.contains('{')) { /*method to run full string*/
