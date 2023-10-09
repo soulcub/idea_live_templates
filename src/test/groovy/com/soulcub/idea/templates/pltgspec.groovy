@@ -18,6 +18,7 @@ class pltgspec extends BaseSpec {
                     .split(' ');
             def className = parsedStringsWithClassName[parsedStringsWithClassName.findIndexOf { it == 'class' } + 1];
             def result = _1
+                    .replaceAll(',\n', ", ")
                     .split(System.lineSeparator())
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }
@@ -60,7 +61,7 @@ class pltgspec extends BaseSpec {
                             if (!returnType.contains('void')) {
                                 withoutResultAssertion +=
                                         'and:' + System.lineSeparator() +
-                                                'result' + resultPostfix + ' == ' + returnType.uncapitalize() + '()' + System.lineSeparator()
+                                                'result' + resultPostfix + ' == \$' + returnType.capitalize() + '()' + System.lineSeparator()
                             }
                             return withoutResultAssertion + '}'
                         } else if (it.contains('private final')) { /*fields*/
@@ -113,7 +114,14 @@ class pltgspec extends BaseSpec {
                             "\n" +
                             "    private final AdminConfigsService adminConfigsService;\n" +
                             "\n" +
-                            "    public List<JackpotConfigDto> getAllJackpotConfigs() {\n"
+                            "    public List<JackpotConfigDto> getAllJackpotConfigs() {\n",
+                    "public class LoginBonusStateCreator implements InitialFeatureStateExtractor {\n" +
+                            "\n" +
+                            "    @Override\n" +
+                            "    public FeatureState create(Long userId,\n" +
+                            "                               String userGameGuid,\n" +
+                            "                               RewardDto rewardDto,\n" +
+                            "                               DefaultWheelGameConfig defaultWheelGameConfig) {\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -129,7 +137,7 @@ class pltgspec extends BaseSpec {
                             "            1 * activeAndDeletedConfigsResolver\n" +
                             "            0 * _\n" +
                             "        and:\n" +
-                            "            result.get() == wheelGameInfoDto()\n" +
+                            "            result.get() == \$WheelGameInfoDto()\n" +
                             "    }\n",
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
                             "    def activeAndDeletedConfigsResolver = Mock(ActiveAndDeletedConfigsResolver)\n" +
@@ -144,7 +152,7 @@ class pltgspec extends BaseSpec {
                             "            1 * activeAndDeletedConfigsResolver\n" +
                             "            0 * _\n" +
                             "        and:\n" +
-                            "            result == wheelGameInfoDto()\n" +
+                            "            result == \$WheelGameInfoDto()\n" +
                             "    }\n",
                     "    def randomUtils = Mock(RandomUtils)\n" +
                             "    \n" +
@@ -157,7 +165,7 @@ class pltgspec extends BaseSpec {
                             "            1 * randomUtils\n" +
                             "            0 * _\n" +
                             "        and:\n" +
-                            "            result == wedgeConfig()\n" +
+                            "            result == \$WedgeConfig()\n" +
                             "    }",
                     "    def messageTtl = Mock(Duration)\n" +
                             "    def messagingKafkaTemplate = Mock(KafkaTemplate)\n" +
@@ -185,8 +193,18 @@ class pltgspec extends BaseSpec {
                             "            1 * adminConfigsService\n" +
                             "            0 * _\n" +
                             "        and:\n" +
-                            "            result == list<JackpotConfigDto>()\n" +
-                            "    }"
+                            "            result == \$List<JackpotConfigDto>()\n" +
+                            "    }",
+                    "    def target = new LoginBonusStateCreator()\n" +
+                            "\n" +
+                            "    def \"test\"() {\n" +
+                            "        when:\n" +
+                            "            def result = target.create(userId, userGameGuid, rewardDto, defaultWheelGameConfig)\n" +
+                            "        then:\n" +
+                            "            0 * _\n" +
+                            "        and:\n" +
+                            "            result == \$FeatureState()\n" +
+                            "    }\n"
             ]
     }
 
