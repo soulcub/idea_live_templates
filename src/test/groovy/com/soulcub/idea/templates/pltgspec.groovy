@@ -6,18 +6,28 @@ class pltgspec extends BaseSpec {
 
     def "groovy spec"() {
         when:
+            Closure<String> removeGenerics
+            removeGenerics = {
+                def pattern = /<[^<>]*>/
+                def result = it.replaceAll(pattern, '')
+                if (result != it) {
+                    return removeGenerics(result)
+                } else {
+                    return result
+                }
+            }
             def parsedRawFieldsWithTypes = _1.split(System.lineSeparator())
                     .findAll { it.contains('private final') }
                     .findAll { !it.contains('=') }
                     .collect { it.replace('private final', '') }
                     .collect { it.replace(';', '') }
-                    .collect { if (!it.contains('<')) return it else it.substring(0, it.indexOf('<')) + it.substring(it.indexOf('>') + 1, it.length()) }
-                    .collect { it.trim() };
-            def parsedRawFields = parsedRawFieldsWithTypes.collect { it.split()[1] };
+                    .collect { removeGenerics(it) }
+                    .collect { it.trim() }
+            def parsedRawFields = parsedRawFieldsWithTypes.collect { it.split()[1] }
             def parsedStringsWithClassName = _1.split(System.lineSeparator())
                     .find { it.contains('class') }
-                    .split(' ');
-            def className = parsedStringsWithClassName[parsedStringsWithClassName.findIndexOf { it == 'class' } + 1];
+                    .split(' ')
+            def className = parsedStringsWithClassName[parsedStringsWithClassName.findIndexOf { it == 'class' } + 1]
             def result = _1
                     .replaceAll(',\n', ", ")
                     .split(System.lineSeparator())
@@ -30,42 +40,45 @@ class pltgspec extends BaseSpec {
                     .collect { it.replace(';', '') }
                     .collect { it ->
                         if (it.contains('{')) { /*method with all parameters*/
-                            def returnType = it.split(' ')[1];
+                            def returnType = it.split(' ')[1]
                             def methodName = it.split(' ')
                                     .find { it.contains('(') }
-                                    .split('\\(')[0];
-                            def methodParams = it.split(methodName)[1]
+                                    .split('\\(')[0]
+                            def methodParams = it.split(methodName + '\\(')[1]
                                                  .replace(') {', '')
-                                                 .split(', ')
-                                                 .collect { it.trim() }
-                                                 .collect { it.startsWith('(') ? it.substring(1) : it }
-                                                 .collect { it.trim() }
-                                                 .findAll { !it.isEmpty() }
-                                                 .collect {
-                                                     if (['boolean', 'char', 'byte', 'int', 'short', 'long', 'float',
-                                                          'double', 'Boolean', 'Character', 'Byte', 'Integer',
-                                                          'Short', 'Long', 'Float', 'Double', 'String'].any { defaultType ->
-                                                         it.contains(defaultType)}) {
-                                                         it.split(' ')[1]
-                                                     } else {
-                                                         '$' + it.split(' ')[0] + '()'
-                                                     }
-                                                 }
-                                                 .join(', ');
+                            def paramsForTarget = removeGenerics(methodParams)
+                                    .split(', ')
+                                    .collect { it.trim() }
+                                    .collect { it.startsWith('(') ? it.substring(1) : it }
+                                    .collect { it.trim() }
+                                    .findAll { !it.isEmpty() }
+                                    .collect {
+                                        if (['boolean', 'char', 'byte', 'int', 'short', 'long', 'float',
+                                             'double', 'Boolean', 'Character', 'Byte', 'Integer',
+                                             'Short', 'Long', 'Float', 'Double', 'String'].any { defaultType -> it.contains(defaultType) }) {
+                                            it.split(' ')[1]
+                                        } else {
+                                            '$' + it.split(' ')[0] + '()'
+                                        }
+                                    }
+                                    .join(', ')
 
                             def mocks = (parsedRawFields.collect { '1 * ' + it } + '0 * _')
-                                    .join(System.lineSeparator());
-                            def resultPostfix = '';
-                            if (returnType.contains('Optional')) { returnType = returnType.substring(returnType.indexOf('<') + 1, returnType.indexOf('>')); resultPostfix = '.get()'; }
+                                    .join(System.lineSeparator())
+                            def resultPostfix = ''
+                            if (returnType.contains('Optional')) {
+                                returnType = returnType.substring(returnType.indexOf('<') + 1, returnType.lastIndexOf('>'))
+                                resultPostfix = '.get()'
+                            }
 
                             def withoutResultAssertion = System.lineSeparator() +
                                     'def target = new ' + className + '(' + parsedRawFields.join(', ') + ')' + System.lineSeparator() +
                                     'def "test"() {' + System.lineSeparator() +
-                                    'when:' + System.lineSeparator();
+                                    'when:' + System.lineSeparator()
                             if (returnType.contains('void')) {
-                                withoutResultAssertion += 'target.' + methodName + '(' + methodParams + ')' + System.lineSeparator()
+                                withoutResultAssertion += 'target.' + methodName + '(' + paramsForTarget + ')' + System.lineSeparator()
                             } else {
-                                withoutResultAssertion += 'def result = target.' + methodName + '(' + methodParams + ')' + System.lineSeparator()
+                                withoutResultAssertion += 'def result = target.' + methodName + '(' + paramsForTarget + ')' + System.lineSeparator()
                             }
                             withoutResultAssertion +=
                                     'then:' + System.lineSeparator() +
@@ -80,12 +93,12 @@ class pltgspec extends BaseSpec {
                             if (it.contains('=')) { /*constant field, no need to mock*/
                                 return ''
                             }
-                            def withoutTypes = it;
+                            def withoutTypes = it
                             if (it.contains('<')) {
-                                withoutTypes = it.substring(0, it.indexOf('<')) + it.substring(it.indexOf('>') + 1, it.length())
+                                withoutTypes = removeGenerics(it)
                             }
-                            def fieldWithType = parsedRawFieldsWithTypes.find { field -> withoutTypes.contains(field) };
-                            def typeFieldArray = fieldWithType.split(' ');
+                            def fieldWithType = parsedRawFieldsWithTypes.find { field -> withoutTypes.contains(field) }
+                            def typeFieldArray = fieldWithType.split(' ')
                             return 'def ' + typeFieldArray[1] + ' = Mock(' + typeFieldArray[0] + ')'
                         }
                         throw new Exception('Cant process code line "' + it + '"')
@@ -146,7 +159,14 @@ class pltgspec extends BaseSpec {
                             "    private final AddonType addonType = LOGIN_BONUS_BASE_COINS;\n" +
                             "\n" +
                             "    @Override\n" +
-                            "    public Optional<BaseCoinsAddonConfigEntity> fromBoss(DefaultWheelGameConfigBossDto bossDto) {\n"
+                            "    public Optional<BaseCoinsAddonConfigEntity> fromBoss(DefaultWheelGameConfigBossDto bossDto) {\n",
+                    "public class BaseCoinsAddonEntityToModelMapper implements AddonEntityToModelMapper {\n" +
+                            "\n" +
+                            "    @Getter\n" +
+                            "    private final AddonType addonType = BASE_COINS;\n" +
+                            "\n" +
+                            "    @Override\n" +
+                            "    public Optional<Addon> fromEntity(WheelGameConfigEntityWithAddons<? extends DefaultWheelGameConfigEntity<? extends DefaultWheelGameConfigEntity<? extends DefaultWheelGameConfigEntity<?>>>> from) {\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -239,6 +259,16 @@ class pltgspec extends BaseSpec {
                             "            0 * _\n" +
                             "        and:\n" +
                             "            result.get() == \$BaseCoinsAddonConfigEntity()\n" +
+                            "    }\n",
+                    "    def target = new BaseCoinsAddonEntityToModelMapper()\n" +
+                            "\n" +
+                            "    def \"test\"() {\n" +
+                            "        when:\n" +
+                            "            def result = target.fromEntity(\$WheelGameConfigEntityWithAddons())\n" +
+                            "        then:\n" +
+                            "            0 * _\n" +
+                            "        and:\n" +
+                            "            result.get() == \$Addon()\n" +
                             "    }\n"
             ]
     }

@@ -21,7 +21,7 @@ class pltraw extends BaseSpec {
             def expected = "    /**\n" +
                     "     * @see BonusTriggerConfigEntity\n" +
                     "     */\n" +
-                    "    Map bonusTriggerConfigEntityRaw() {\n" +
+                    "    Map \$BonusTriggerConfigEntityRaw(@DelegatesTo(Map) Closure closure = {}) {\n" +
                     "        [\n" +
                     "                key: key,\n" +
                     "                enabled: enabled,\n" +
@@ -49,7 +49,7 @@ class pltraw extends BaseSpec {
                             def tokens = it.split();
                             if (tokens.find { it == 'class' }) {
                                 def className = tokens[2];
-                                return '    /**' + System.lineSeparator() + '    * @see ' + className + System.lineSeparator() + '    */' + System.lineSeparator() + 'Map ' + className.uncapitalize() + 'Raw() {' + System.lineSeparator() + '['
+                                return '    /**' + System.lineSeparator() + '    * @see ' + className + System.lineSeparator() + '    */' + System.lineSeparator() + 'Map $' + className.capitalize() + 'Raw(@DelegatesTo(Map) Closure closure = {}) {' + System.lineSeparator() + '['
                             } else {
                                 def varName = tokens[1];
                                 def result = varName + ': ' + varName;
