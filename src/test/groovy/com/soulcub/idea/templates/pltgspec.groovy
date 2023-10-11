@@ -8,6 +8,7 @@ class pltgspec extends BaseSpec {
         when:
             def parsedRawFieldsWithTypes = _1.split(System.lineSeparator())
                     .findAll { it.contains('private final') }
+                    .findAll { !it.contains('=') }
                     .collect { it.replace('private final', '') }
                     .collect { it.replace(';', '') }
                     .collect { if (!it.contains('<')) return it else it.substring(0, it.indexOf('<')) + it.substring(it.indexOf('>') + 1, it.length()) }
@@ -28,19 +29,30 @@ class pltgspec extends BaseSpec {
                     .findAll { !it.contains('public static') }
                     .collect { it.replace(';', '') }
                     .collect { it ->
-                        if (it.contains('{')) { /*method to run full string*/
+                        if (it.contains('{')) { /*method with all parameters*/
                             def returnType = it.split(' ')[1];
                             def methodName = it.split(' ')
                                     .find { it.contains('(') }
                                     .split('\\(')[0];
                             def methodParams = it.split(methodName)[1]
-                                    .replace(') {', '')
-                                    .split(', ')
-                                    .collect { it.trim() }
-                                    .findAll { !it.isEmpty() }
-                                    .findAll { it != '(' } /*in case we don't have parameters*/
-                                    .collect { it.split(' ')[1] }
-                                    .join(', ');
+                                                 .replace(') {', '')
+                                                 .split(', ')
+                                                 .collect { it.trim() }
+                                                 .collect { it.startsWith('(') ? it.substring(1) : it }
+                                                 .collect { it.trim() }
+                                                 .findAll { !it.isEmpty() }
+                                                 .collect {
+                                                     if (['boolean', 'char', 'byte', 'int', 'short', 'long', 'float',
+                                                          'double', 'Boolean', 'Character', 'Byte', 'Integer',
+                                                          'Short', 'Long', 'Float', 'Double', 'String'].any { defaultType ->
+                                                         it.contains(defaultType)}) {
+                                                         it.split(' ')[1]
+                                                     } else {
+                                                         '$' + it.split(' ')[0] + '()'
+                                                     }
+                                                 }
+                                                 .join(', ');
+
                             def mocks = (parsedRawFields.collect { '1 * ' + it } + '0 * _')
                                     .join(System.lineSeparator());
                             def resultPostfix = '';
@@ -64,7 +76,10 @@ class pltgspec extends BaseSpec {
                                                 'result' + resultPostfix + ' == \$' + returnType.capitalize() + '()' + System.lineSeparator()
                             }
                             return withoutResultAssertion + '}'
-                        } else if (it.contains('private final')) { /*fields*/
+                        } else if (it.contains('private final')) { /*fields to mock*/
+                            if (it.contains('=')) { /*constant field, no need to mock*/
+                                return ''
+                            }
                             def withoutTypes = it;
                             if (it.contains('<')) {
                                 withoutTypes = it.substring(0, it.indexOf('<')) + it.substring(it.indexOf('>') + 1, it.length())
@@ -74,7 +89,10 @@ class pltgspec extends BaseSpec {
                             return 'def ' + typeFieldArray[1] + ' = Mock(' + typeFieldArray[0] + ')'
                         }
                         throw new Exception('Cant process code line "' + it + '"')
-                    }.join(System.lineSeparator())
+                    }
+                    .collect { it.trim() }
+                    .findAll { !it.isEmpty() }
+                    .join(System.lineSeparator())
         then:
             assertResult(expected, result)
         where: "clipboard content"
@@ -121,7 +139,14 @@ class pltgspec extends BaseSpec {
                             "    public FeatureState create(Long userId,\n" +
                             "                               String userGameGuid,\n" +
                             "                               RewardDto rewardDto,\n" +
-                            "                               DefaultWheelGameConfig defaultWheelGameConfig) {\n"
+                            "                               DefaultWheelGameConfig defaultWheelGameConfig) {\n",
+                    "public class BaseCoinsAddonBossAndEntityMapper implements AddonBossAndEntityMapper<BaseCoinsAddonConfigEntity> {\n" +
+                            "\n" +
+                            "    @Getter\n" +
+                            "    private final AddonType addonType = LOGIN_BONUS_BASE_COINS;\n" +
+                            "\n" +
+                            "    @Override\n" +
+                            "    public Optional<BaseCoinsAddonConfigEntity> fromBoss(DefaultWheelGameConfigBossDto bossDto) {\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -160,7 +185,7 @@ class pltgspec extends BaseSpec {
                             "    \n" +
                             "    def \"test\"() {\n" +
                             "        when:\n" +
-                            "            def result = target.select(wheelGameConfig)\n" +
+                            "            def result = target.select(\$DefaultWheelGameConfig())\n" +
                             "        then:\n" +
                             "            1 * randomUtils\n" +
                             "            0 * _\n" +
@@ -175,7 +200,7 @@ class pltgspec extends BaseSpec {
                             "\n" +
                             "    def \"test\"() {\n" +
                             "        when:\n" +
-                            "            target.sendAchievedRuleMessage(userId, gameCreatedMessagingDto)\n" +
+                            "            target.sendAchievedRuleMessage(userId, \$GameCreatedMessagingDto())\n" +
                             "        then:\n" +
                             "            1 * messageTtl\n" +
                             "            1 * messagingKafkaTemplate\n" +
@@ -199,11 +224,21 @@ class pltgspec extends BaseSpec {
                             "\n" +
                             "    def \"test\"() {\n" +
                             "        when:\n" +
-                            "            def result = target.create(userId, userGameGuid, rewardDto, defaultWheelGameConfig)\n" +
+                            "            def result = target.create(userId, userGameGuid, \$RewardDto(), \$DefaultWheelGameConfig())\n" +
                             "        then:\n" +
                             "            0 * _\n" +
                             "        and:\n" +
                             "            result == \$FeatureState()\n" +
+                            "    }\n",
+                    "    def target = new BaseCoinsAddonBossAndEntityMapper()\n" +
+                            "\n" +
+                            "    def \"test\"() {\n" +
+                            "        when:\n" +
+                            "            def result = target.fromBoss(\$DefaultWheelGameConfigBossDto())\n" +
+                            "        then:\n" +
+                            "            0 * _\n" +
+                            "        and:\n" +
+                            "            result.get() == \$BaseCoinsAddonConfigEntity()\n" +
                             "    }\n"
             ]
     }
