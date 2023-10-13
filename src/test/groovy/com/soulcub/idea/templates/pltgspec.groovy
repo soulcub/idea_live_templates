@@ -28,6 +28,12 @@ class pltgspec extends BaseSpec {
                     .find { it.contains('class') }
                     .split(' ')
             def className = parsedStringsWithClassName[parsedStringsWithClassName.findIndexOf { it == 'class' } + 1]
+
+            Closure<String> prepareBaseTarget = {
+                System.lineSeparator() + 'def target = new ' + className + '(' + parsedRawFields.join(', ') + ')' + System.lineSeparator()
+            }
+            boolean targetWasAlreadyAdded = false
+
             def result = _1
                     .replaceAll(',\n', ", ")
                     .split(System.lineSeparator())
@@ -42,8 +48,8 @@ class pltgspec extends BaseSpec {
                         if (it.contains('{')) { /*method with all parameters*/
                             def returnType = it.split(' ')[1]
                             def methodName = it.split(' ')
-                                    .find { it.contains('(') }
-                                    .split('\\(')[0]
+                                               .find { it.contains('(') }
+                                               .split('\\(')[0]
                             def methodParams = it.split(methodName + '\\(')[1]
                                                  .replace(') {', '')
                             def paramsForTarget = removeGenerics(methodParams)
@@ -71,24 +77,24 @@ class pltgspec extends BaseSpec {
                                 resultPostfix = '.get()'
                             }
 
-                            def withoutResultAssertion = System.lineSeparator() +
-                                    'def target = new ' + className + '(' + parsedRawFields.join(', ') + ')' + System.lineSeparator() +
+                            def result = prepareBaseTarget() +
                                     'def "test"() {' + System.lineSeparator() +
                                     'when:' + System.lineSeparator()
                             if (returnType.contains('void')) {
-                                withoutResultAssertion += 'target.' + methodName + '(' + paramsForTarget + ')' + System.lineSeparator()
+                                result += 'target.' + methodName + '(' + paramsForTarget + ')' + System.lineSeparator()
                             } else {
-                                withoutResultAssertion += 'def result = target.' + methodName + '(' + paramsForTarget + ')' + System.lineSeparator()
+                                result += 'def result = target.' + methodName + '(' + paramsForTarget + ')' + System.lineSeparator()
                             }
-                            withoutResultAssertion +=
+                            result +=
                                     'then:' + System.lineSeparator() +
                                             mocks + System.lineSeparator()
                             if (!returnType.contains('void')) {
-                                withoutResultAssertion +=
+                                result +=
                                         'and:' + System.lineSeparator() +
                                                 'result' + resultPostfix + ' == \$' + returnType.capitalize() + '()' + System.lineSeparator()
                             }
-                            return withoutResultAssertion + '}'
+                            targetWasAlreadyAdded = true
+                            return result + '}'
                         } else if (it.contains('private final')) { /*fields to mock*/
                             if (it.contains('=')) { /*constant field, no need to mock*/
                                 return ''
@@ -105,7 +111,7 @@ class pltgspec extends BaseSpec {
                     }
                     .collect { it.trim() }
                     .findAll { !it.isEmpty() }
-                    .join(System.lineSeparator())
+                    .join(System.lineSeparator()) + (targetWasAlreadyAdded ? "" : System.lineSeparator() + prepareBaseTarget())
         then:
             assertResult(expected, result)
         where: "clipboard content"
@@ -166,7 +172,17 @@ class pltgspec extends BaseSpec {
                             "    private final AddonType addonType = BASE_COINS;\n" +
                             "\n" +
                             "    @Override\n" +
-                            "    public Optional<Addon> fromEntity(WheelGameConfigEntityWithAddons<? extends DefaultWheelGameConfigEntity<? extends DefaultWheelGameConfigEntity<? extends DefaultWheelGameConfigEntity<?>>>> from) {\n"
+                            "    public Optional<Addon> fromEntity(WheelGameConfigEntityWithAddons<? extends DefaultWheelGameConfigEntity<? extends DefaultWheelGameConfigEntity<? extends DefaultWheelGameConfigEntity<?>>>> from) {\n",
+                    "public class DefaultWheelGameCreator implements GameCreator {\n" +
+                            "\n" +
+                            "    private final UserGamesOperations userGamesOperations;\n" +
+                            "    private final UserWheelGamesInfoMutators userWheelGamesInfoMutators;\n" +
+                            "    private final GameCreatedKafkaEventFacade gameCreatedKafkaEventFacade;\n" +
+                            "    private final SegmentationFacade segmentationFacade;\n" +
+                            "    private final MessagingFacade messagingFacade;\n" +
+                            "    private final GameGuidSupplier gameGuidSupplier;\n" +
+                            "    private final GeneralFeatureStateService generalFeatureStateService;\n" +
+                            "    private final FeatureStateCreator featureStateCreator;\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -269,7 +285,17 @@ class pltgspec extends BaseSpec {
                             "            0 * _\n" +
                             "        and:\n" +
                             "            result.get() == \$Addon()\n" +
-                            "    }\n"
+                            "    }\n",
+                    "    def userGamesOperations = Mock(UserGamesOperations)\n" +
+                            "    def userWheelGamesInfoMutators = Mock(UserWheelGamesInfoMutators)\n" +
+                            "    def gameCreatedKafkaEventFacade = Mock(GameCreatedKafkaEventFacade)\n" +
+                            "    def segmentationFacade = Mock(SegmentationFacade)\n" +
+                            "    def messagingFacade = Mock(MessagingFacade)\n" +
+                            "    def gameGuidSupplier = Mock(GameGuidSupplier)\n" +
+                            "    def generalFeatureStateService = Mock(GeneralFeatureStateService)\n" +
+                            "    def featureStateCreator = Mock(FeatureStateCreator)\n" +
+                            "\n" +
+                            "    def target = new DefaultWheelGameCreator(userGamesOperations, userWheelGamesInfoMutators, gameCreatedKafkaEventFacade, segmentationFacade, messagingFacade, gameGuidSupplier, generalFeatureStateService, featureStateCreator)\n"
             ]
     }
 

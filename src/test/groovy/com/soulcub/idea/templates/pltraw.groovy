@@ -26,7 +26,7 @@ class pltraw extends BaseSpec {
                     "                key: key,\n" +
                     "                enabled: enabled,\n" +
                     "                rewardConfigs: rewardConfigs\n" +
-                    "        ]\n" +
+                    "        ].tap(closure)\n" +
                     "    }\n"
         when:
             def result = _1
@@ -60,7 +60,7 @@ class pltraw extends BaseSpec {
                             }
                         }
                     }
-                    .join(System.lineSeparator()) + System.lineSeparator() + ']' + System.lineSeparator() + '}'
+                    .join(System.lineSeparator()) + System.lineSeparator() + '].tap(closure)' + System.lineSeparator() + '}'
         then:
             def resultStrings = result.split(System.lineSeparator())
             def expectedStrings = expected.split(System.lineSeparator())
