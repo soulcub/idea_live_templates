@@ -42,7 +42,7 @@ class pltgspec extends BaseSpec {
                     .findAll { !it.startsWith('@') }
                     .findAll { !it.contains('class') }
                     .findAll { !it.contains('TODO') }
-                    .findAll { !it.contains('public static') }
+                    .findAll { !it.contains('static') }
                     .collect { it.replace(';', '') }
                     .collect { it ->
                         if (it.contains('{')) { /*method with all parameters*/
@@ -182,7 +182,12 @@ class pltgspec extends BaseSpec {
                             "    private final MessagingFacade messagingFacade;\n" +
                             "    private final GameGuidSupplier gameGuidSupplier;\n" +
                             "    private final GeneralFeatureStateService generalFeatureStateService;\n" +
-                            "    private final FeatureStateCreator featureStateCreator;\n"
+                            "    private final FeatureStateCreator featureStateCreator;\n",
+                    "public class GameConfigIdFromSkuDataExtractor {\n" +
+                            "\n" +
+                            "    public final static String SUB_SKU_DELIMITER = \"::\";\n" +
+                            "\n" +
+                            "    public String extractGameConfigId(RewardDto rewardDto) {\n"
             ]
             expected << [
                     "    def userGamesOperations = Mock(UserGamesOperations)\n" +
@@ -295,7 +300,17 @@ class pltgspec extends BaseSpec {
                             "    def generalFeatureStateService = Mock(GeneralFeatureStateService)\n" +
                             "    def featureStateCreator = Mock(FeatureStateCreator)\n" +
                             "\n" +
-                            "    def target = new DefaultWheelGameCreator(userGamesOperations, userWheelGamesInfoMutators, gameCreatedKafkaEventFacade, segmentationFacade, messagingFacade, gameGuidSupplier, generalFeatureStateService, featureStateCreator)\n"
+                            "    def target = new DefaultWheelGameCreator(userGamesOperations, userWheelGamesInfoMutators, gameCreatedKafkaEventFacade, segmentationFacade, messagingFacade, gameGuidSupplier, generalFeatureStateService, featureStateCreator)\n",
+                    "    def target = new GameConfigIdFromSkuDataExtractor()\n" +
+                            "\n" +
+                            "    def \"test\"() {\n" +
+                            "        when:\n" +
+                            "            def result = target.extractGameConfigId(\$RewardDto())\n" +
+                            "        then:\n" +
+                            "            0 * _\n" +
+                            "        and:\n" +
+                            "            result == \$String()\n" +
+                            "    }"
             ]
     }
 
